@@ -5,12 +5,12 @@ use ieee.numeric_std.all;
 package sos_df2_pkg is
     -- filter parameters
     constant FILT_ORD : natural := 2;
-    constant FILT_LEN : natural := 3;
+    constant FILT_LEN : natural := 4;
 
     -- assume filter coefficient wordlength >= samples wordlength
     -- fractional samples and coefficients Q1.WL_x-1
     constant WLD     : natural := 8;
-    constant WLC     : natural := 8;
+    constant WLC     : natural := 16;
     constant QF_DATA : natural := WLD-1;
     constant QF_COEF : natural := WLC-1;
     -- guard bits in QI.WLC-1 to avoid overflow
@@ -37,6 +37,7 @@ package sos_df2_pkg is
         std_logic_vector(to_signed(25, WLI)));
 
     constant ff_coef : ff_coef_t := (
+        std_logic_vector(to_signed(26, WLI)),
         std_logic_vector(to_signed(26, WLI)),
         std_logic_vector(to_signed(52, WLI)),
         std_logic_vector(to_signed(26, WLI)));

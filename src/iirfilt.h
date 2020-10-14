@@ -4,4 +4,4 @@
 int iirfilt(const int x);
 int iirfilt_sadd(const int x);
 
-#endif // IIRFILT_H
+#endif /* IIRFILT_H */
