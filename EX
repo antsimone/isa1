@@ -1,0 +1,14 @@
+Clustered Look-ahead example for n_iter=1
+=========================================
+
+1. yn = xnb0 + xn-1b1 + xn-2b2 - a1yn-1 - a2yn-2
+2. yn-1 = xn-1b0 + xn-2b1 + xn-3b2 - a1yn-2 - a2yn-3
+
+2 --> 1
+-------
+yn = xnb0 + xn-1b1 + xn-2b2 - (a1[xn-1b0 + xn-2b1 + xn-3b2 - a1yn-2 - a2yn-3]
+                              + a2yn-2) 
+yn = xnb0 + xn-1b1 + xn-2b2 - a1b0xn-1 - a1b1xn-2 - a1b2xn-3 + a1**2yn-2 + a1a2yn-3 - a2yn-2
+yn = xnb0 + xn-1[b1 - a1b0] + xn-2[b2 - a1b1] - xn-3[a1b2] + (
+                                                               yn-2[a1**2 - a2]
+                                                                   + yn-3[a1a2])

@@ -16,7 +16,6 @@ end entity;
 
 architecture beh of data_sink is
 begin
-
     -- Write line to file at each clock cycle is unit is enabled
     process(clk, rst_n)
         file fp         : text open WRITE_MODE is FILENAME;

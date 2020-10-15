@@ -18,11 +18,8 @@ entity data_src is
 end entity;
 
 architecture beh of data_src is
-
     constant TCKQ : time := 100 PS;
-
 begin
-
     -- Read one sample at each clock cycle if unit is enabled
     process(clk, rst_n)
         file fp         : text open READ_MODE is FILENAME;  -- file ptr

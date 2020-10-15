@@ -20,9 +20,7 @@ architecture test of tb_top is
     -- dut pins
     signal valid_i, valid_o : std_logic;
     signal data_i, data_o   : std_logic_vector(WLD-1 downto 0);
-
 begin
-
     -- Clk and reset gen
     process
     begin

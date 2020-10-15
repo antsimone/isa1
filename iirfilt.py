@@ -2,29 +2,53 @@
 import scipy.signal as signal
 import numpy as np
 
-def quantize(x, qf):
-   return np.floor(x*pow(2, qf))/pow(2, qf)
+def qfrac(x, qf):
+    return np.floor(x*pow(2, qf))/pow(2, qf)
 
-n = 2 # filter order
-qf = 7 # nb-1
+def stimuli(freqs, f_sampling, n_samples):
+    t = np.arange(0, n_samples/f_sampling, 1/f_sampling)
+    sin = 0
+    for f in freqs:
+        sin += np.sin(2*np.pi*f*t)
+        sin /= len(freqs)
+
+    return sin
+
+def lookahead(sos):
+    """Clustered Look-ahead example
+
+       1. yn = xnb0 + xn-1b1 + xn-2b2 - a1yn-1 - a2yn-2
+       2. yn-1 = xn-1b0 + xn-2b1 + xn-3b2 - a1yn-2 - a2yn-3
+
+       2 --> 1
+       -------
+       yn = xnb0 + xn-1[b1 - a1b0] + xn-2[b2 - a1b1] - xn-3[a1b2]
+            + yn-2[a1**2 - a2] + yn-3[a1a2])
+
+    """
+    res = np.zeros((sos.shape[0], sos.shape[1]+2))
+    for i in range(sos.shape[0]):
+        b, a = sos[i,:3], sos[i,3:]
+        res[i,:4] = np.array([b[0], b[1]-a[1]*b[0], b[2]-a[1]*b[1], -a[1]*b[2]])
+        res[i,4:] = np.array([a[0], 0, pow(a[1],2)-a[2], a[1]*a[2]])
+
+    return res
+
+nfilt = 2 # filter order
+nb = 8 # wordlength
 fc = 2e3 # cutoff
 fs = 10e3 # sampling freq
 
 # get coefficients in fractional format
-sos = quantize(signal.butter(n, 2*fc/fs, 'lowpass', output='sos'), qf)
-
-# test vector
-f = [1550, 2500] # frequency components
-t = np.arange(0, 256/fs, 1/fs) # time samples
-
-x1 = np.sin(2*np.pi*f[0]*t)
-x2 = np.sin(2*np.pi*f[1]*t)
+sos = qfrac(signal.butter(nfilt, 2*fc/fs, 'lowpass', output='sos'), nb-1)
 
 # apply
-xq = quantize((x1+x2)/2, qf)
-yq = quantize(signal.sosfilt(sos, xq), qf)
+xq = qfrac(stimuli([1300, 2700], 128, fs), nb-1)
+#yq = qfrac(signal.sosfilt(sos, xq), nb-1)
+yq = qfrac(signal.lfilter( a, xq), nb-1)
+
 
 # save int
-np.savetxt('samples', xq*(pow(2, qf)), fmt="%d")
-np.savetxt('results', yq*(pow(2, qf)), fmt="%d")
+np.savetxt('samples', xq*(pow(2, nb-1)), fmt="%d")
+np.savetxt('results', yq*(pow(2, nb-1)), fmt="%d")
 
