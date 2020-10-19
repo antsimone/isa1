@@ -2,7 +2,7 @@
 
 #define WLD 8 /* word-length data */
 #define WLC 8 /* word-length coefficients */
-#define ARRAY_SIZE(a) \
+#define LEN(a) \
   (sizeof(a) / sizeof(*a)) /* filter length */
 
 /* filter coefficients */
@@ -11,7 +11,7 @@ static const int b[] = { 26, 52, 26 };
 
 /* filter implementation */
 int iirfilt(const int x){
-  static int d_reg[ARRAY_SIZE(a)-1]; /* shift register */
+  static int d_reg[LEN(a)-1]; /* shift register */
   static int first_run = 0; /* keep in memory */
   int i;  /* loop index */
   int d, fb, ff, y; 
@@ -19,14 +19,14 @@ int iirfilt(const int x){
   /* clean the buffer */
   if (first_run == 0){
     first_run = 1;
-    for (i = 0; i < ARRAY_SIZE(d_reg); i++)
+    for (i = 0; i < LEN(d_reg); i++)
       d_reg[i] = 0;
   }
 
   /* compute feed-back and feed-forward */
   fb = 0;
   ff = 0;
-  for (i = 0; i < ARRAY_SIZE(d_reg); i++){
+  for (i = 0; i < LEN(d_reg); i++){
     fb -= (d_reg[i]*a[i+1]) >> (WLC-1);
     ff += (d_reg[i]*b[i+1]) >> (WLC-1);   
   }
@@ -36,7 +36,7 @@ int iirfilt(const int x){
   y = ((d*b[0]) >> (WLC-1)) + ff; 
 
   /* update the shift register */
-  for (i = ARRAY_SIZE(d_reg); i > 0; i--){
+  for (i = LEN(d_reg); i > 0; i--){
     d_reg[i] = d_reg[i-1];
   }
   d_reg[0] = d;
