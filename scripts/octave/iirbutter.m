@@ -18,4 +18,4 @@ function [bq, aq] = iirbutter(n, fc, fs, nb)
     title('Frequency response');
     legend('Real','Quantized');
 
-end
+endfunction

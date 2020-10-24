@@ -1,18 +1,18 @@
-clc; clear all; close all ; 
+pkg load signal
 
 % filter config
-
 n = 2; % filter order
 nb = 8;	% samples wordlength
 fc = 2e3; % cutoff frequency
 fs = 10e3; % sampling frequency
 
-% test vector
+% test vector components
 f1 = 500;  
 f2 = 4500; 
-t = 0:1/fs:5*(1/min(f1,f2));
-x1 = sin(2*pi*f1*t)
-x2 = sin(2*pi*f2*t)
+tt = 0:1/fs:5*(1/min(f1,f2));
+x1 = sin(2*pi*f1*tt)
+x2 = sin(2*pi*f2*tt)
+% test signal
 x = (x1+x2)/2; 
 xq = floor(x*2^(nb-1))/2^(nb-1);
 
@@ -106,4 +106,3 @@ figlist = findall(groot,'Type','figure');
 for i = 1:length(figlist)
   print(figlist(i), [ 'fig/' get(figlist(i),'name') '_fig.pdf']);
 end
-

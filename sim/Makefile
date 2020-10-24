@@ -6,7 +6,7 @@ TB				= tb_top
 WORK_DIR		= work
 
 GHDLWORK 		= --workdir=$(WORK_DIR)
-GHDLRUNFLAGS	= --vcd=sim.vcd
+GHDLRUNFLAGS	= --vcd=sim.vcd -gFILENAME_I="../scripts/samples" -gFILENAME_O="results"
 
 # TODO WARNS
 
@@ -30,7 +30,7 @@ clean:
 	@ghdl --remove $(GHDLWORK) 
 
 cleanall: clean
-	@rm -f *.vcd *.txt -r $(WORK_DIR)
+	@rm -f *.vcd *.txt results -r $(WORK_DIR)
 
 .PHONY: run obj lib clean cleanall
 

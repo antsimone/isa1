@@ -1,7 +1,7 @@
-TARGET	= iir_filter.m
+TGT	= iirfilt.m
 all:
-	@octave --no-gui $(TARGET)
+	@octave --no-gui $(TGT)
 clean:
-	@rm -rf fig/ *.txt *~
+	@rm -rf fig/ *.txt *~ results samples
 
 .PHONY: all clean

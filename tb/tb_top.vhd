@@ -2,12 +2,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity tb_top is
+    generic (
+        FILENAME_I : string := "../scripts/samples";
+        FILENAME_O : string := "results");
 end entity;
 architecture test of tb_top is
-    constant FILENAME_I : string   := "../octave/samples";
-    constant FILENAME_O : string   := "results";
-    constant WLD        : positive := 8;     -- data size
-    constant TS         : time     := 1 NS;  -- sample period (clk)
+    constant WLD : positive := 8;       -- data size
+    constant TS  : time     := 1 NS;    -- sample period (clk)
 
     -- clk, rst gen
     signal clk   : std_logic;
@@ -41,11 +42,11 @@ begin
     process
     begin
         en_i <= '1';
-        wait for 16*TS;         -- wait 16 cycles before toggle
+        wait for 16*TS;                 -- wait 16 cycles before toggle
         for i in 0 to 1 loop
             report "Toggle input data stream enable";
             en_i <= not en_i;
-            wait for 8*TS; -- wait 8 cycles 
+            wait for 8*TS;              -- wait 8 cycles 
         end loop;
         wait;
     end process;
@@ -81,6 +82,7 @@ begin
             data_o    => data_i,
             valid_o   => valid_i,
             end_sim_o => end_sim);
+
     data_sink_1 : entity work.data_sink
         generic map (
             WLD      => WLD,

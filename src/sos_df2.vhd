@@ -18,26 +18,22 @@ end entity;
 
 architecture rtl of sos_df2 is
     -- Delay line and output reg enable
-    signal valid_q : std_logic;
-
-    signal x_q       : std_logic_vector(WLD-1 downto 0);  -- valid input sample
-    signal x_q_align : std_logic_vector(WLI-1 downto 0);  -- aligned qf 
-    signal y_d       : std_logic_vector(WLI-1 downto 0);  -- 1b growth ff
-    signal d_d       : std_logic_vector(WLI-1 downto 0);  -- 1b growth fb
-    signal y_d_sat   : std_logic_vector(WLD-1 downto 0);
-    signal d_q       : reg_t;
-
+    signal valid_q     : std_logic;
+    signal x_q         : std_logic_vector(WLD-1 downto 0);  -- valid input sample
+    signal x_q_align   : std_logic_vector(WLI-1 downto 0);  -- aligned qf 
+    signal y_d         : std_logic_vector(WLI-1 downto 0);  -- 1b growth ff
+    signal d_d         : std_logic_vector(WLI-1 downto 0);  -- 1b growth fb
+    signal y_d_sat     : std_logic_vector(WLD-1 downto 0);
+    signal d_q         : reg_t;
     -- Generate products
-    signal fb_prod : fb_prod_t;
-    signal ff_prod : ff_prod_t;
-
+    signal fb_prod     : fb_prod_t;
+    signal ff_prod     : ff_prod_t;
     -- Truncated results
     signal ff_prod_rnd : ff_prod_rnd_t;
     signal fb_prod_rnd : fb_prod_rnd_t;
-
     -- Sum node
-    signal fb_sum : std_logic_vector(WLI-1 downto 0);
-    signal ff_sum : std_logic_vector(WLI-1 downto 0);
+    signal fb_sum      : std_logic_vector(WLI-1 downto 0);
+    signal ff_sum      : std_logic_vector(WLI-1 downto 0);
 
 begin
 
@@ -97,19 +93,19 @@ begin
     end process;
 
     --
-    -- Wordlength ops
+    -- Wordlength fun
     -- 
 
     -- Scale sample to internal format (align)
-    -- x << (QF_INT - QF)
-    x_q_align <= align(x_q, QF_DATA, WLI, QF_INT);
+    -- x << (QFI - QF)
+    x_q_align <= align(x_q, QFD, WLI, QFI);
 
     -- Round products (truncate)
     fb_rnd_gen : for i in fb_prod'RANGE generate
-        fb_prod_rnd(i) <= trunc(fb_prod(i), WLI, QF_INT);
+        fb_prod_rnd(i) <= trunc(fb_prod(i), WLI, QFI);
     end generate;
     ff_rnd_gen : for i in ff_prod'RANGE generate
-        ff_prod_rnd(i) <= trunc(ff_prod(i), WLI, QF_INT);
+        ff_prod_rnd(i) <= trunc(ff_prod(i), WLI, QFI);
     end generate;
 
     -- Saturate results
@@ -176,7 +172,6 @@ begin
             a_i => ff_prod_rnd(0),
             b_i => ff_sum,
             r_o => y_d);
-
     ff_sum_inst_1 : adder
         generic map (
             N => WLI)
