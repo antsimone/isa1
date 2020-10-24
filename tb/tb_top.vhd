@@ -61,7 +61,7 @@ begin
     end process;
 
     -- DUT 
-    sos_df2_1 : entity work.sos_df2
+    sosdf2_1 : entity work.sosdf2
         port map (
             clk     => clk,
             rst_n   => rst_n,

@@ -1,0 +1,41 @@
+.
+|-- refmod
+|   |-- Makefile
+|   |-- main.c
+|   |-- scripts
+|   |   |-- iir_filter.py
+|   |   `-- octave
+|   |       |-- Makefile
+|   |       |-- dynrange.m
+|   |       |-- fig
+|   |       |-- iir_design.m
+|   |       `-- iir_filter.m
+|   |-- sosdf2.c
+|   `-- sosdf2.h
+|-- sim
+|   |-- Makefile
+|   `-- vsim
+|       |-- Makefile
+|       `-- vsim.tcl
+|-- src
+|   |-- components
+|   |   |-- add.vhd
+|   |   |-- mul.vhd
+|   |   `-- sub.vhd
+|   |-- pkg
+|   |   |-- components_pkg.vhd
+|   |   |-- numeric_pkg.vhd
+|   |   `-- sosdf2_pkg.vhd
+|   `-- sosdf2.vhd
+|-- syn
+|   |-- dc_constraints.tcl
+|   |-- dc_power_saif.tcl
+|   |-- dc_setup.tcl
+|   `-- dc_syn.tcl
+|-- tb
+|   |-- tb_data_sink.vhd
+|   |-- tb_data_src.vhd
+|   `-- tb_top.vhd
+`-- tree
+
+11 directories, 27 files
