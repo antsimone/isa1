@@ -10,7 +10,7 @@ package sos_df2_pkg is
     -- assume filter coefficient wordlength >= samples wordlength
     -- fractional samples and coefficients Q1.WL_x-1
     constant WLD : natural := 8;
-    constant WLC : natural := 16;
+    constant WLC : natural := 8;
     constant QFD : natural := WLD-1;
     constant QFC : natural := WLC-1;
     -- guard bits in QI.WLC-1 to avoid overflow
