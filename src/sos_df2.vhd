@@ -37,10 +37,6 @@ architecture rtl of sos_df2 is
 
 begin
 
-    --
-    -- Registers
-    -- 
-
     -- Valid signal pipeline
     process(clk, rst_n)
     begin
@@ -65,6 +61,10 @@ begin
         end if;
     end process;
 
+    -- Scale sample to internal format (align)
+    -- x << (QFI - QF)
+    x_q_align <= align(x_q, QFD, WLI, QFI);
+
     -- Delay line
     process(clk, rst_n)
     begin
@@ -80,42 +80,9 @@ begin
         end if;
     end process;
 
-    -- Registered output
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            data_o <= (others => '0');
-        elsif rising_edge(clk) then
-            if valid_q = '1' then
-                data_o <= y_d_sat;
-            end if;
-        end if;
-    end process;
-
-    --
-    -- Wordlength fun
-    -- 
-
-    -- Scale sample to internal format (align)
-    -- x << (QFI - QF)
-    x_q_align <= align(x_q, QFD, WLI, QFI);
-
-    -- Round products (truncate)
-    fb_rnd_gen : for i in fb_prod'RANGE generate
-        fb_prod_rnd(i) <= trunc(fb_prod(i), WLI, QFI);
-    end generate;
-    ff_rnd_gen : for i in ff_prod'RANGE generate
-        ff_prod_rnd(i) <= trunc(ff_prod(i), WLI, QFI);
-    end generate;
-
-    -- Saturate results
-    y_d_sat <= clip(y_d, WLD);
-
-    --
-    -- Components inst
-    --
-
-    -- Feedback products
+    -- Retiming feedback loop
+    -- u: multiplier
+    -- r_u = +1 shift 1 reg from input arcs to output arc
     fb_prod_gen : for i in fb_prod'RANGE generate
         multiplier_inst : multiplier generic map (
             N => WLI)
@@ -124,6 +91,43 @@ begin
                 b_i => fb_coef(i),
                 r_o => fb_prod(i));
     end generate;
+
+    -- Round products (truncate)
+    fb_rnd_gen : for i in fb_prod'RANGE generate
+        fb_prod_rnd(i) <= trunc(fb_prod(i), WLI, QFI);
+    end generate;
+
+    -- Insert retiming register in feedback loop
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            fb_prod_rnd_q <= (others => (others => '0'));
+        elsif rising_edge(clk) then
+            if valid_q = '1' then
+                for i in fb_prod'RANGE loop
+                    fb_prod_rnd_q(i) <= fb_prod_rnd(i);
+                end loop;
+            end if;
+        end if;
+    end process;
+
+    -- Sum feedback products
+    fb_sum_inst : adder
+        generic map (
+            N => WLI)
+        port map (
+            a_i => fb_prod_rnd(0),
+            b_i => fb_prod_rnd(1),
+            r_o => fb_sum);
+
+    -- Sum feedback samples to input
+    fb_sub_inst : subtractor
+        generic map (
+            N => WLI)
+        port map (
+            a_i => x_q_align,
+            b_i => fb_sum,
+            r_o => d_d);
 
     -- Fir products
     ff_prod_gen : for i in ff_prod'RANGE generate
@@ -145,33 +149,12 @@ begin
         end generate ff_gen_x;
     end generate ff_prod_gen;
 
-
-    -- Sum feedback samples to input
-    fb_sub_inst : subtractor
-        generic map (
-            N => WLI)
-        port map (
-            a_i => x_q_align,
-            b_i => fb_sum,
-            r_o => d_d);
-
-    -- Sum feedback products
-    fb_sum_inst : adder
-        generic map (
-            N => WLI)
-        port map (
-            a_i => fb_prod_rnd(0),
-            b_i => fb_prod_rnd(1),
-            r_o => fb_sum);
+    -- Round ff products
+    ff_rnd_gen : for i in ff_prod'RANGE generate
+        ff_prod_rnd(i) <= trunc(ff_prod(i), WLI, QFI);
+    end generate;
 
     -- Sum fir products
-    ff_sum_inst_0 : adder
-        generic map (
-            N => WLI)
-        port map (
-            a_i => ff_prod_rnd(0),
-            b_i => ff_sum,
-            r_o => y_d);
     ff_sum_inst_1 : adder
         generic map (
             N => WLI)
@@ -179,5 +162,29 @@ begin
             a_i => ff_prod_rnd(1),
             b_i => ff_prod_rnd(2),
             r_o => ff_sum);
+
+    -- Compute output sample
+    ff_sum_inst_0 : adder
+        generic map (
+            N => WLI)
+        port map (
+            a_i => ff_prod_rnd(0),
+            b_i => ff_sum,
+            r_o => y_d);
+
+    -- Saturate results (merge in reg : syn?)
+    y_d_sat <= clip(y_d, WLD);
+
+    -- Registered output
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            data_o <= (others => '0');
+        elsif rising_edge(clk) then
+            if valid_q = '1' then
+                data_o <= y_d_sat;
+            end if;
+        end if;
+    end process;
 
 end architecture;
