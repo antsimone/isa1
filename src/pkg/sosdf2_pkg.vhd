@@ -10,7 +10,7 @@ package sosdf2_pkg is
     -- assume filter coefficient wordlength >= samples wordlength
     -- fractional samples and coefficients Q1.WL_x-1
     constant WLD : natural := 8;
-    constant WLC : natural := 16;
+    constant WLC : natural := 11;
     constant QFD : natural := WLD-1;
     constant QFC : natural := WLC-1;
     -- guard bits in QI.WLC-1 to avoid overflow
@@ -30,12 +30,13 @@ package sosdf2_pkg is
 
     -- coefficients
     constant fb_coef : fb_coef_t := (
-        std_logic_vector(to_signed(-48, WLI)),
-        std_logic_vector(to_signed(25, WLI)));
+        std_logic_vector(to_signed(-56, WLI)),
+        std_logic_vector(to_signed(75, WLI)));
     constant ff_coef : ff_coef_t := (
-        std_logic_vector(to_signed(26, WLI)),
-        std_logic_vector(to_signed(52, WLI)),
-        std_logic_vector(to_signed(26, WLI)));
+        std_logic_vector(to_signed(208, WLI)),
+        std_logic_vector(to_signed(494, WLI)),
+        std_logic_vector(to_signed(364, WLI)),
+        std_logic_vector(to_signed(78, WLI)));
 
 end package;
 

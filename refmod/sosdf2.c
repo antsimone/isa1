@@ -1,11 +1,11 @@
 /* Direct form 2 IIR filter with truncated mac */
 #define WLD 8 /* word-length data */
-#define WLC 8 /* word-length coefficients */
+#define WLC 11 /* word-length coefficients */
 #define LEN(a) (sizeof(a) / sizeof(*a)) /* filter length */
 
 /* filter coefficients */
-static const int a[] = { 128, -48, 25 };
-static const int b[] = { 26, 52, 26 };
+static const int a[] = { 1024, 0, -56, 75 };
+static const int b[] = { 208, 494, 364, 78 };
 
 /* filter implementation */
 int sosdf2(const int x){

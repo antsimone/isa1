@@ -5,15 +5,15 @@ use ieee.numeric_std.all;
 package numeric_pkg is
     -- * Design units that do not require different architectures * --
 
-    -- fx_prod >> QF_INT
+    -- fx_prod >> NB
     -- drop right-most part since we have fractional coefficients
     function trunc(
-        arg           : std_logic_vector;
-        RES_L, RES_QF : natural)
+        arg       : std_logic_vector;
+        RES_L, NB : natural)
         return std_logic_vector;
 
     -- Scale sample to internal format (align)
-    -- x << (QF_INT - QF)
+    -- x << (RES_QF - ARG_QF)
     -- This function ensure that vector slice is within range when Q_DIFF=0
     function align(
         arg                   : std_logic_vector;
@@ -31,18 +31,18 @@ end package;
 
 package body numeric_pkg is
 
-    -- fx_prod >> QF_INT
+    -- fx_prod >> NB
     -- drop right-most part since we have fractional coefficients
 
-    function trunc(arg : std_logic_vector; RES_L, RES_QF : natural)
+    function trunc(arg : std_logic_vector; RES_L, NB : natural)
         return std_logic_vector is
-        constant RES_H : natural := RES_QF + RES_L - 1;
+        constant RES_H : natural := NB + RES_L - 1;
     begin
-        return arg(RES_H downto RES_QF);
+        return arg(RES_H downto NB);
     end function;
 
     -- Scale sample to internal format (align)
-    -- x << (QF_INT - QF)
+    -- x << (RES_QF - ARG_QF)
     -- This function ensure that vector slice is within range when Q_DIFF=0
 
     function align(arg : std_logic_vector; ARG_QF, RES_L, RES_QF : natural)

@@ -6,7 +6,7 @@ TB				= tb_top
 WORK_DIR		= work
 
 GHDLWORK 		= --workdir=$(WORK_DIR)
-GHDLRUNFLAGS	= --vcd=sim.vcd -gFILENAME_I="../samples" -gFILENAME_O="results"
+GHDLRUNFLAGS	= --vcd=sim.vcd -gFILENAME_I="../scripts/samples" -gFILENAME_O="results"
 
 # TODO WARNS
 

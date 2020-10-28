@@ -9,6 +9,7 @@ end entity;
 architecture test of tb_top is
     constant WLD : positive := 8;       -- data size
     constant TS  : time     := 1 NS;    -- sample period (clk)
+    constant LAT : positive := 6;       -- dut latency
 
     -- clk, rst gen
     signal clk   : std_logic;
@@ -21,7 +22,9 @@ architecture test of tb_top is
     -- dut pins
     signal valid_i, valid_o : std_logic;
     signal data_i, data_o   : std_logic_vector(WLD-1 downto 0);
+
 begin
+
     -- Clk and reset gen
     process
     begin
@@ -55,7 +58,7 @@ begin
     process
     begin
         wait until rising_edge(end_sim);
-        wait for 3*TS;                  -- Drain filter results
+        wait for LAT*TS;                -- Drain filter results
         report "Close sim";
         assert FALSE severity FAILURE;
     end process;

@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-
+-- custom lib 
 use work.sosdf2_pkg.all;
 use work.numeric_pkg.all;
 use work.components_pkg.all;
@@ -19,15 +19,16 @@ end entity;
 architecture rtl of sosdf2 is
     -- * structural arch * --
     -- Enable reg pipeline
-    signal valid_q : std_logic;
+    signal valid_q : std_logic_vector(2 downto 0);
 
     -- Input/Ouput samples
     signal x_q       : std_logic_vector(WLD-1 downto 0);  -- valid input sample
     signal x_q_align : std_logic_vector(WLI-1 downto 0);  -- aligned qf 
     signal y_d       : std_logic_vector(WLI-1 downto 0);  -- output sample  
+    signal y_d_trunc : std_logic_vector(WLI-QFC+QFD-1 downto 0);
     signal y_d_sat   : std_logic_vector(WLD-1 downto 0);
 
-    -- Internal node and delay line
+    -- Delay line
     signal d_d : std_logic_vector(WLI-1 downto 0);
     signal d_q : reg_t;
 
@@ -36,18 +37,18 @@ architecture rtl of sosdf2 is
     signal ff_prod : ff_prod_t;
 
     -- Round mul results
-    signal ff_prod_r : ff_prod_r_t;
-    signal fb_prod_r : fb_prod_r_t;
+    signal ff_prod_r   : ff_prod_r_t;
+    signal fb_prod_r   : fb_prod_r_t;
+    signal fb_prod_r_q : fb_prod_r_t;
 
     -- Sum op
     signal fb_sum   : std_logic_vector(WLI-1 downto 0);
-    signal ff_sum   : std_logic_vector(WLI-1 downto 0);
     signal ff_sum_1 : std_logic_vector(WLI-1 downto 0);
     signal ff_sum_2 : std_logic_vector(WLI-1 downto 0);
 
     -- FIR pipeline stages
     -- 1 stage
-    signal ff_q1          : reg_t;        -- internal node stage, split fb/ff
+    signal ff_q           : reg_t;        -- internal node stage, split fb/ff
     -- 2 stage
     signal ff_prod_r_q    : ff_prod_r_t;  -- multiply & round stage
     -- 3 stage
@@ -61,11 +62,13 @@ begin
     process(clk, rst_n)
     begin
         if rst_n = '0' then
-            valid_q <= '0';
+            valid_q <= (others => '0');
             valid_o <= '0';
         elsif rising_edge(clk) then
-            valid_q <= valid_i;
-            valid_o <= valid_q;
+            valid_q(0) <= valid_i;
+            valid_q(1) <= valid_q(0);
+            valid_q(2) <= valid_q(1);
+            valid_o    <= valid_q(2);
         end if;
     end process;
 
@@ -81,7 +84,6 @@ begin
         end if;
     end process;
 
-
     -- ----------
     -- Delay line
     -- ----------
@@ -91,7 +93,7 @@ begin
         if rst_n = '0' then
             d_q <= (others => (others => '0'));
         elsif rising_edge(clk) then
-            if valid_q = '1' then
+            if valid_q(0) = '1' then
                 d_q(0) <= d_d;
                 for i in 1 to d_q'HIGH loop
                     d_q(i) <= d_q(i-1);
@@ -131,11 +133,9 @@ begin
         if rst_n = '0' then
             fb_prod_r_q <= (others => (others => '0'));
         elsif rising_edge(clk) then
-            if valid_q = '1' then
                 for i in fb_prod'RANGE loop
                     fb_prod_r_q(i) <= fb_prod_r(i);
                 end loop;
-            end if;
         end if;
     end process;
 
@@ -144,8 +144,8 @@ begin
         generic map (
             N => WLI)
         port map (
-            a_i => fb_prod_r(0),
-            b_i => fb_prod_r(1),
+            a_i => fb_prod_r_q(0),
+            b_i => fb_prod_r_q(1),
             r_o => fb_sum);
 
     -- Sum feedback samples to input
@@ -167,8 +167,10 @@ begin
         if rst_n = '0' then
             ff_q <= (others => (others => '0'));
         elsif rising_edge(clk) then
-            ff_q(0)                  <= d_d;
-            ff_q(ff_q'HIGH downto 1) <= d_q;
+            ff_q(0) <= d_d;
+            for i in d_q'RANGE loop
+                ff_q(i) <= d_q(i);
+            end loop;
         end if;
     end process;
 
@@ -201,9 +203,9 @@ begin
         mul_inst : mult generic map (
             N => WLI)
             port map (
-                a_i => d_q(i-1),
-                b_i => ff_coef(i),
-                r_o => ff_prod(i));
+                a_i => d_q(i),
+                b_i => ff_coef(i+1),
+                r_o => ff_prod(i+1));
     end generate ff_prod_gen;
     mult_inst_0 : mult generic map (
         N => WLI)
@@ -217,7 +219,7 @@ begin
         ff_prod_r(i) <= trunc(ff_prod(i), WLI, QFI);
     end generate;
 
-    -- Sum 
+    -- Sum FIR
     ff_sum_inst_2 : add
         generic map (
             N => WLI)
@@ -225,6 +227,7 @@ begin
             a_i => ff_prod_r_q(2),
             b_i => ff_prod_r_q(3),
             r_o => ff_sum_2);
+
     ff_sum_inst_1 : add
         generic map (
             N => WLI)
@@ -232,6 +235,7 @@ begin
             a_i => ff_prod_r_q2_1,
             b_i => ff_sum_2_q,
             r_o => ff_sum_1);
+
     -- Compute output sample
     ff_sum_inst_0 : add
         generic map (
@@ -241,8 +245,10 @@ begin
             b_i => ff_sum_1,
             r_o => y_d);
 
-    -- Saturate results (merge in reg : syn?)
-    y_d_sat <= clip(y_d, WLD);
+    -- Saturate truncated res 
+    -- only discard lsbs, no need for trunc()
+    y_d_trunc <= y_d(y_d'HIGH downto QFI-QFD);
+    y_d_sat   <= clip(y_d_trunc, WLD);
 
     -- Registered output
     process(clk, rst_n)
@@ -250,7 +256,7 @@ begin
         if rst_n = '0' then
             data_o <= (others => '0');
         elsif rising_edge(clk) then
-            if valid_q = '1' then
+            if valid_q(2) = '1' then
                 data_o <= y_d_sat;
             end if;
         end if;

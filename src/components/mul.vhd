@@ -10,7 +10,7 @@ entity mult is
         r_o : out std_logic_vector(2*N-1 downto 0));
 end entity;
 
-architecture beh of multiplier is
+architecture beh of mult is
 begin
     r_o <= std_logic_vector(signed(a_i)*signed(b_i));
 end architecture;
