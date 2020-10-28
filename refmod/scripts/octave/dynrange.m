@@ -28,7 +28,7 @@ disp(sprintf('MinValue:\n\n\t%8d\n', min_value))
 disp(sprintf('MaxValue:\n\n\t%8d\n', max_value))
 
 % Get filter iir_coefficients
-[~,~,b,a] = iir_coeff(Nf, fc, fs, Nb);
+[b,a] = iir_design(Nf, fc, fs, Nb);
 
 % Transfer functions
 sys = tf(b, a, 1/fs)
@@ -88,4 +88,4 @@ for n = 3:Nx+2
   d(n) = (x(n) - a(2)*d(n-1) - a(3)*d(n-2));
   y(n) = (b(1)*d(n) + b(2)*d(n-1) + b(3)*d(n-2));
 end
-disp([ 'max value = ' num2str(max(d(:,1)))       
+disp([ 'max value = ' num2str(max(d(:,1)))])      

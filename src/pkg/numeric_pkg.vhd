@@ -8,7 +8,7 @@ package numeric_pkg is
     -- fx_prod >> QF_INT
     -- drop right-most part since we have fractional coefficients
     function trunc(
-        arg : std_logic_vector;
+        arg           : std_logic_vector;
         RES_L, RES_QF : natural)
         return std_logic_vector;
 
@@ -16,14 +16,14 @@ package numeric_pkg is
     -- x << (QF_INT - QF)
     -- This function ensure that vector slice is within range when Q_DIFF=0
     function align(
-        arg : std_logic_vector;
+        arg                   : std_logic_vector;
         ARG_QF, RES_L, RES_QF : natural)
         return std_logic_vector;
 
     -- Check sign extension out of WLD range
     -- Clip value to max/min
     function clip(
-        arg : std_logic_vector;
+        arg   : std_logic_vector;
         RES_L : natural)
         return std_logic_vector;
 

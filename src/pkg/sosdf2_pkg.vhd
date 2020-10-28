@@ -22,11 +22,11 @@ package sosdf2_pkg is
     -- feedback typedef
     type fb_coef_t is array (0 to FILT_ORD-1) of std_logic_vector(WLI-1 downto 0);
     type fb_prod_t is array (0 to FILT_ORD-1) of std_logic_vector(WLI*2-1 downto 0);
-    type fb_prod_rnd_t is array (0 to FILT_ORD-1) of std_logic_vector(WLI-1 downto 0);
+    type fb_prod_r_t is array (0 to FILT_ORD-1) of std_logic_vector(WLI-1 downto 0);
     -- fir typedef
     type ff_coef_t is array (0 to FILT_LEN-1) of std_logic_vector(WLI-1 downto 0);
     type ff_prod_t is array (0 to FILT_LEN-1) of std_logic_vector(WLI*2-1 downto 0);
-    type ff_prod_rnd_t is array (0 to FILT_LEN-1) of std_logic_vector(WLI-1 downto 0);
+    type ff_prod_r_t is array (0 to FILT_LEN-1) of std_logic_vector(WLI-1 downto 0);
 
     -- coefficients
     constant fb_coef : fb_coef_t := (

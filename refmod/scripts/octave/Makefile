@@ -1,6 +1,6 @@
-TGT	= iir_filter.m
+TGT	= dynrange.m
 all:
-	@octave --no-gui $(TGT)
+	@octave --no-gui --no-window-system --eval "pkg load signal; run $(TGT:.m=)"
 clean:
 	@rm -rf fig/ *.txt *~ results samples
 
