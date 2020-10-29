@@ -3,36 +3,38 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 package sosdf2_pkg is
-    -- filter parameters
-    constant FILT_ORD : natural := 2;
-    constant FILT_LEN : natural := 4;
+    -- * nonsense pkg used to simplify debug and project maintenance * --
 
-    -- assume filter coefficient wordlength >= samples wordlength
-    -- fractional samples and coefficients Q1.WL_x-1
+    -- Assume filter coefficient wordlength >= samples wordlength
+    -- Fractional samples and coefficients Q1.WL_x-1
     constant WLD : natural := 8;
-    constant WLC : natural := 11;
     constant QFD : natural := WLD-1;
+    constant WLC : natural := 11;
     constant QFC : natural := WLC-1;
-    -- guard bits in QI.WLC-1 to avoid overflow
-    constant WLI : natural := WLC+1;
+    -- Internal wordlength
+    constant WLI : natural := WLC;
     constant QFI : natural := QFC;
 
-    -- delay line typedef
-    type reg_t is array (0 to FILT_LEN-2) of std_logic_vector(WLI-1 downto 0);
-    -- feedback typedef
-    type fb_coef_t is array (0 to FILT_ORD-1) of std_logic_vector(WLI-1 downto 0);
-    type fb_prod_t is array (0 to FILT_ORD-1) of std_logic_vector(WLI*2-1 downto 0);
-    type fb_prod_r_t is array (0 to FILT_ORD-1) of std_logic_vector(WLI-1 downto 0);
-    -- fir typedef
-    type ff_coef_t is array (0 to FILT_LEN-1) of std_logic_vector(WLI-1 downto 0);
-    type ff_prod_t is array (0 to FILT_LEN-1) of std_logic_vector(WLI*2-1 downto 0);
-    type ff_prod_r_t is array (0 to FILT_LEN-1) of std_logic_vector(WLI-1 downto 0);
+    -- Typedefs
 
-    -- coefficients
-    constant fb_coef : fb_coef_t := (
+    -- Delay line 
+    type reg_t is array (0 to 2) of std_logic_vector(WLI-1 downto 0);
+
+    -- Feedback
+    type fb_coef_t is array (0 to 1) of std_logic_vector(WLI-1 downto 0);
+    type fb_prod_r_t is array (0 to 1) of std_logic_vector(WLI-1 downto 0);
+
+    -- Fir 
+    type ff_coef_t is array (0 to 3) of std_logic_vector(WLI-1 downto 0);
+    type ff_prod_r_t is array (0 to 3) of std_logic_vector(WLI-1 downto 0);
+
+    -- Coefficients
+
+    constant FB_COEF : fb_coef_t := (
         std_logic_vector(to_signed(-56, WLI)),
         std_logic_vector(to_signed(75, WLI)));
-    constant ff_coef : ff_coef_t := (
+
+    constant FF_COEF : ff_coef_t := (
         std_logic_vector(to_signed(208, WLI)),
         std_logic_vector(to_signed(494, WLI)),
         std_logic_vector(to_signed(364, WLI)),
