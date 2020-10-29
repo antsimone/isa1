@@ -29,34 +29,32 @@ architecture rtl of sosdf2 is
     signal y_d_sat   : std_logic_vector(WLD-1 downto 0);
 
     -- Delay line
-    signal d_d : std_logic_vector(WLI-1 downto 0);
-    signal d_q : reg_t;
+    signal dreg_d   : std_logic_vector(WLI-1 downto 0);
+    signal dreg_d_q : std_logic_vector(WLI-1 downto 0);  -- pipelined version
+    signal dreg_q   : reg_t;
+    signal dreg_q2  : reg_t;                             -- pipelined version
 
-    -- Generate mul
-    signal fb_prod : fb_prod_t;
-    signal ff_prod : ff_prod_t;
-
-    -- Round mul results
-    signal ff_prod_r   : ff_prod_r_t;
-    signal fb_prod_r   : fb_prod_r_t;
-    signal fb_prod_r_q : fb_prod_r_t;
+    -- Mul results, rounded and pipelined
+    signal ff_prod_r : ff_prod_r_t;
+    signal fb_prod_r : fb_prod_r_t;
 
     -- Sum op
-    signal fb_sum   : std_logic_vector(WLI-1 downto 0);
-    signal ff_sum_1 : std_logic_vector(WLI-1 downto 0);
-    signal ff_sum_2 : std_logic_vector(WLI-1 downto 0);
-
-    -- FIR pipeline stages
-    -- 1 stage
-    signal ff_q           : reg_t;        -- internal node stage, split fb/ff
-    -- 2 stage
-    signal ff_prod_r_q    : ff_prod_r_t;  -- multiply & round stage
-    -- 3 stage
-    signal ff_prod_r_q2_0 : std_logic_vector(WLI-1 downto 0);
-    signal ff_prod_r_q2_1 : std_logic_vector(WLI-1 downto 0);
-    signal ff_sum_2_q     : std_logic_vector(WLI-1 downto 0);
+    signal fb_sum : std_logic_vector(WLI-1 downto 0);
+    signal ff_sum : std_logic_vector(WLI-1 downto 0);
 
 begin
+
+    -- Sample valid input
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            x_q <= (others => '0');
+        elsif rising_edge(clk) then
+            if valid_i = '1' then
+                x_q <= data_i;
+            end if;
+        end if;
+    end process;
 
     -- Valid signal pipeline
     process(clk, rst_n)
@@ -72,185 +70,104 @@ begin
         end if;
     end process;
 
-    -- Valid input sample
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            x_q <= (others => '0');
-        elsif rising_edge(clk) then
-            if valid_i = '1' then
-                x_q <= data_i;
-            end if;
-        end if;
-    end process;
-
-    -- ----------
     -- Delay line
-    -- ----------
-
     process(clk, rst_n)
     begin
         if rst_n = '0' then
-            d_q <= (others => (others => '0'));
+            dreg_q <= (others => (others => '0'));
         elsif rising_edge(clk) then
             if valid_q(0) = '1' then
-                d_q(0) <= d_d;
-                for i in 1 to d_q'HIGH loop
-                    d_q(i) <= d_q(i-1);
+                dreg_q(0) <= dreg_d;
+                for i in 1 to dreg_q'HIGH loop
+                    dreg_q(i) <= dreg_q(i-1);
                 end loop;
             end if;
         end if;
     end process;
 
-    -- ---------------
+    -- -------------
     -- Feedback part
-    -- ---------------
+    -- -------------
+
+    -- Retiming feedback loop
+    -- u: mult
+    -- r_u = +1 shift 1 reg from input arcs to output arc
+    -- retiming register in feedback loop sample mul results
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            fb_prod_r <= (others => (others => '0'));
+        elsif rising_edge(clk) then
+            fb_prod_r(0) <=
+                trunc(std_logic_vector(signed(fb_coef(0)*signed(dreg_q(0)))),
+                      WLI,
+                      QFI);
+            fb_prod_r(1) <=
+                trunc(std_logic_vector(signed(fb_coef(1)*signed(dreg_q(1)))),
+                      WLI,
+                      QFI);
+        end if;
+    end process;
 
     -- Scale sample to internal format (align)
     -- x << (QFI - QF)
     x_q_align <= align(x_q, QFD, WLI, QFI);
 
-    -- Retiming feedback loop
-    -- u: mult
-    -- r_u = +1 shift 1 reg from input arcs to output arc
-    fb_prod_gen : for i in fb_prod'RANGE generate
-        mult_inst : mult generic map (
-            N => WLI)
-            port map (
-                a_i => d_q(i),
-                b_i => fb_coef(i),
-                r_o => fb_prod(i));
-    end generate;
+    -- Feedback sum 
+    process(fb_prod_r, x_q_align)
+    begin
+        fb_sum <= std_logic_vector(signed(x_q_align)
+                                   - (signed(fb_prod_r(0))
+                                      + signed(fb_prod_r(1))));
+    end process;
 
-    -- Round products (truncate)
-    fb_r_gen : for i in fb_prod'RANGE generate
-        fb_prod_r(i) <= trunc(fb_prod(i), WLI, QFI);
-    end generate;
+    -- --------
+    -- Fir part
+    -- --------
 
-    -- Insert retiming register in feedback loop
+    -- Pipe stage 1, split feedback/feedforward
     process(clk, rst_n)
     begin
         if rst_n = '0' then
-            fb_prod_r_q <= (others => (others => '0'));
+            dreg_d_q <= (others => '0');
+            dreg_q2  <= (others => (others => '0'));
         elsif rising_edge(clk) then
-                for i in fb_prod'RANGE loop
-                    fb_prod_r_q(i) <= fb_prod_r(i);
-                end loop;
+            dreg_d_q <= dreg_d;
+            dreg_q2  <= dreg_q;
         end if;
     end process;
 
-    -- Sum feedback products
-    fb_sum_inst : add
-        generic map (
-            N => WLI)
-        port map (
-            a_i => fb_prod_r_q(0),
-            b_i => fb_prod_r_q(1),
-            r_o => fb_sum);
-
-    -- Sum feedback samples to input
-    fb_sub_inst : subt
-        generic map (
-            N => WLI)
-        port map (
-            a_i => x_q_align,
-            b_i => fb_sum,
-            r_o => d_d);
-
-    -- ----------------------
-    -- Feedforward part (FIR)
-    -- ----------------------
-
-    -- Pipe stage internal node, split fb/ff
+    -- Pipe stage 2, fir products 
     process(clk, rst_n)
     begin
         if rst_n = '0' then
-            ff_q <= (others => (others => '0'));
+            ff_prod_r <= (others => (others => '0'));
         elsif rising_edge(clk) then
-            ff_q(0) <= d_d;
-            for i in d_q'RANGE loop
-                ff_q(i) <= d_q(i);
+            ff_prod_r(0) <= std_logic_vector(signed(ff_coef(0))*signed(dreg_d_q));
+            for i in dreg_q'RANGE loop
+                ff_prod_r(i+1) <=
+                    trunc(
+                        std_logic_vector(signed(ff_coef(i+1))*signed(dreg_q2(i))),
+                        WLI,
+                        QFI);
             end loop;
         end if;
     end process;
 
-    -- Pipe stage multiply & round
+    -- Pipe stage 3, pipe sum 
     process(clk, rst_n)
     begin
         if rst_n = '0' then
-            ff_prod_r_q <= (others => (others => '0'));
         elsif rising_edge(clk) then
-            ff_prod_r_q <= ff_prod_r;
         end if;
     end process;
 
-    -- Pipe stage sum 
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            ff_prod_r_q2_0 <= (others => '0');
-            ff_prod_r_q2_1 <= (others => '0');
-            ff_sum_2_q     <= (others => '0');
-        elsif rising_edge(clk) then
-            ff_prod_r_q2_0 <= ff_prod_r(0);
-            ff_prod_r_q2_1 <= ff_prod_r(1);
-            ff_sum_2_q     <= ff_sum_2;
-        end if;
-    end process;
-
-    -- FIR mul op
-    ff_prod_gen : for i in d_q'RANGE generate
-        mul_inst : mult generic map (
-            N => WLI)
-            port map (
-                a_i => d_q(i),
-                b_i => ff_coef(i+1),
-                r_o => ff_prod(i+1));
-    end generate ff_prod_gen;
-    mult_inst_0 : mult generic map (
-        N => WLI)
-        port map (
-            a_i => d_d,
-            b_i => ff_coef(0),
-            r_o => ff_prod(0));
-
-    -- Round mul res
-    ff_prod_r_gen : for i in ff_prod'RANGE generate
-        ff_prod_r(i) <= trunc(ff_prod(i), WLI, QFI);
-    end generate;
-
-    -- Sum FIR
-    ff_sum_inst_2 : add
-        generic map (
-            N => WLI)
-        port map (
-            a_i => ff_prod_r_q(2),
-            b_i => ff_prod_r_q(3),
-            r_o => ff_sum_2);
-
-    ff_sum_inst_1 : add
-        generic map (
-            N => WLI)
-        port map (
-            a_i => ff_prod_r_q2_1,
-            b_i => ff_sum_2_q,
-            r_o => ff_sum_1);
-
-    -- Compute output sample
-    ff_sum_inst_0 : add
-        generic map (
-            N => WLI)
-        port map (
-            a_i => ff_prod_r_q2_0,
-            b_i => ff_sum_1,
-            r_o => y_d);
-
-    -- Saturate truncated res 
-    -- only discard lsbs, no need for trunc()
+-- Saturate truncated res 
+-- only discard lsbs, no need for trunc()
     y_d_trunc <= y_d(y_d'HIGH downto QFI-QFD);
     y_d_sat   <= clip(y_d_trunc, WLD);
 
-    -- Registered output
+-- Registered output
     process(clk, rst_n)
     begin
         if rst_n = '0' then
