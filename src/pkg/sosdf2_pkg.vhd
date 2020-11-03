@@ -3,8 +3,6 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 package sosdf2_pkg is
-    -- * nonsense pkg used to simplify debug and project maintenance * --
-
     -- Assume filter coefficient wordlength >= samples wordlength
     -- Fractional samples and coefficients Q1.WL_x-1
     constant WLD : natural := 8;
@@ -12,7 +10,7 @@ package sosdf2_pkg is
     constant WLC : natural := 11;
     constant QFC : natural := WLC-1;
     -- Internal wordlength
-    constant WLI : natural := WLC;
+    constant WLI : natural := WLC;      -- Sat if WLI > QFC+1
     constant QFI : natural := QFC;
 
     -- Typedefs

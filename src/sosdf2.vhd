@@ -26,8 +26,7 @@ architecture rtl of sosdf2 is
     signal x_q       : std_logic_vector(WLD-1 downto 0);  -- valid input sample
     signal x_q_align : std_logic_vector(WLI-1 downto 0);  -- aligned qf 
     signal y_d       : std_logic_vector(WLI-1 downto 0);  -- output sample  
-    signal y_d_tru   : std_logic_vector(WLI-QFC+QFD-1 downto 0);
-    signal y_d_sat   : std_logic_vector(WLD-1 downto 0);
+    signal y_d_tru   : std_logic_vector(WLD-1 downto 0);
 
     -- Delay line
     signal dreg_d   : std_logic_vector(WLI-1 downto 0);
@@ -270,8 +269,7 @@ begin
             r_o => y_d);
 
     -- Saturate and scale res
-    y_d_tru <= y_d(y_d'HIGH downto QFI-QFD);
-    y_d_sat <= clip(y_d_tru, WLD);
+    y_d_tru <= y_d(y_d'HIGH downto WLI-WLD);
 
     -- Registered output
     reg_5 : entity work.reg
@@ -281,7 +279,7 @@ begin
             clk   => clk,
             rst_n => rst_n,
             en_i  => valid_q(3),
-            d_i   => y_d_sat,
+            d_i   => y_d_tru,
             q_o   => data_o);
 
 end architecture;
