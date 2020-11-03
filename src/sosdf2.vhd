@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+-- work
 use work.sosdf2_pkg.all;
 use work.numeric_pkg.all;
 
@@ -14,12 +15,12 @@ entity sosdf2 is
         data_o  : out std_logic_vector(WLD-1 downto 0));
 end entity;
 
-architecture beh of sosdf2 is
-    -- * Clustered Look-ahead transform with L=1 * --
-    -- * Use user-defined types attribute to condense code in process * --
+architecture rtl of sosdf2 is
+    -- * Clustered Look-ahead transform L=1 
+    -- * structural arch 
 
     -- Enable reg pipeline
-    signal valid_q : std_logic_vector(3 downto 0);
+    signal valid_q : std_logic_vector(4 downto 0);
 
     -- Input/Ouput samples
     signal x_q       : std_logic_vector(WLD-1 downto 0);  -- valid input sample
@@ -35,172 +36,252 @@ architecture beh of sosdf2 is
     signal dreg_q2  : reg_t;                             -- pipelined version
 
     -- Mul results, rounded and pipelined
+    signal fb_prod        : fb_prod_t;
+    signal ff_prod        : ff_prod_t;
+    signal fb_prod_r      : fb_prod_r_t;
+    signal ff_prod_r      : ff_prod_r_t;
     signal fb_prod_r_q    : fb_prod_r_t;
     signal ff_prod_r_q    : ff_prod_r_t;
     signal ff_prod_r_q2_0 : std_logic_vector(WLI-1 downto 0);
     signal ff_prod_r_q2_1 : std_logic_vector(WLI-1 downto 0);
 
     -- Sum op
-    signal ff_sum_q_2 : std_logic_vector(WLI-1 downto 0);
+    signal fb_sum     : std_logic_vector(WLI-1 downto 0);
+    signal ff_sum_1   : std_logic_vector(WLI-1 downto 0);
+    signal ff_sum_2   : std_logic_vector(WLI-1 downto 0);
+    signal ff_sum_2_q : std_logic_vector(WLI-1 downto 0);
 
 begin
 
-    -- Sample valid input
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            x_q <= (others => '0');
-        elsif rising_edge(clk) then
-            if valid_i = '1' then
-                x_q <= data_i;
-            end if;
-        end if;
-    end process;
+    -- Valid input sample
+    reg_0 : entity work.reg
+        generic map (
+            N => WLD)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => valid_i,
+            d_i   => data_i,
+            q_o   => x_q);
 
     -- Valid signal pipeline
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            valid_q <= (others => '0');
-            valid_o <= '0';
-        elsif rising_edge(clk) then
-            valid_q(0) <= valid_i;
-            for i in valid_q'HIGH downto 1 loop
-                valid_q(i) <= valid_q(i-1);
-            end loop;
-            valid_o <= valid_q(valid_q'HIGH);
-        end if;
-    end process;
+    shiftreg_1 : entity work.shiftreg
+        generic map (
+            N => valid_q'LENGTH)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => '1',
+            d_i   => valid_i,
+            q_o   => valid_q);
+
+    valid_o <= valid_q(4);
 
     -- Delay line
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            dreg_q <= (others => (others => '0'));
-        elsif rising_edge(clk) then
-            if valid_q(0) = '1' then
-                dreg_q(0) <= dreg_d;
-                for i in 1 to dreg_q'HIGH loop
-                    dreg_q(i) <= dreg_q(i-1);
-                end loop;
-            end if;
-        end if;
-    end process;
+    reg_1_0 : entity work.reg
+        generic map (
+            N => WLI)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => valid_q(0),
+            d_i   => dreg_d,
+            q_o   => dreg_q(0));
+    dreg_gen : for i in 1 to dreg_q'HIGH generate
+        reg_1_i : entity work.reg
+            generic map (
+                N => WLI)
+            port map (
+                clk   => clk,
+                rst_n => rst_n,
+                en_i  => valid_q(0),
+                d_i   => dreg_q(i-1),
+                q_o   => dreg_q(i));
+    end generate;
 
-    -- -------------
+    -- ---------------
     -- Feedback part
-    -- -------------
+    -- ---------------
 
-    -- Retiming feedback loop
+    -- Feedback mul
+    fb_prod_gen : for i in fb_prod'RANGE generate
+        fb_mult_inst_i : entity work.mult generic map (
+            N => WLI)
+            port map (
+                a_i => dreg_q(i),
+                b_i => fb_coef(i),
+                r_o => fb_prod(i));
+    end generate;
+
+    -- Round products (truncate)
+    fb_r_gen : for i in fb_prod'RANGE generate
+        fb_prod_r(i) <= trunc(fb_prod(i), WLI, QFI);
+    end generate;
+
+    -- Insert retiming register in feedback loop
     -- u: mult
     -- r_u = +1 shift 1 reg from input arcs to output arc
-    -- retiming register in feedback loop sample mul results
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            fb_prod_r_q <= (others => (others => '0'));
-        elsif rising_edge(clk) then
-            if valid_q(0) = '1' then
-                for i in fb_prod_r_q'RANGE loop
-                    fb_prod_r_q(i) <=
-                        trunc(std_logic_vector(signed(FB_COEF(i))*signed(dreg_q(i))),
-                              WLI,
-                              QFI);
-                end loop;
-            end if;
-        end if;
-    end process;
+    fb_ret_gen : for i in fb_prod'RANGE generate
+        reg_1_1_i : entity work.reg
+            generic map (
+                N => WLI)
+            port map (
+                clk   => clk,
+                rst_n => rst_n,
+                en_i  => valid_q(0),
+                d_i   => fb_prod_r(i),
+                q_o   => fb_prod_r_q(i));
+    end generate;
+
+    -- Sum feedback products
+    fb_add_inst_0 : entity work.add
+        generic map (
+            N => WLI)
+        port map (
+            a_i => fb_prod_r_q(0),
+            b_i => fb_prod_r_q(1),
+            r_o => fb_sum);
 
     -- Scale sample to internal format (align)
     -- x << (QFI - QF)
     x_q_align <= align(x_q, QFD, WLI, QFI);
 
-    -- Feedback sum 
-    -- TODO Fix generic index
-    dreg_d <= std_logic_vector(signed(x_q_align)
-                               - (signed(fb_prod_r_q(0))
-                                  + signed(fb_prod_r_q(1))));
+    -- Sum feedback samples to input
+    fb_sub_inst_0 : entity work.subt
+        generic map (
+            N => WLI)
+        port map (
+            a_i => x_q_align,
+            b_i => fb_sum,
+            r_o => dreg_d);
 
-    -- --------
-    -- Fir part
-    -- --------
+    -- ----------------
+    -- Fir part 
+    -- ----------------
 
     -- Pipe stage 1, split feedback/feedforward
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            dreg_d_q <= (others => '0');
-            dreg_q2  <= (others => (others => '0'));
-        elsif rising_edge(clk) then
-            if valid_q(0) = '1' then
-                dreg_d_q <= dreg_d;
-                dreg_q2  <= dreg_q;
-            end if;
-        end if;
-    end process;
+    reg_2_0 : entity work.reg
+        generic map (
+            N => WLI)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => valid_q(0),
+            d_i   => dreg_d,
+            q_o   => dreg_d_q);
+    pipe_stage_1_gen : for i in dreg_q'RANGE generate
+        reg_2_i : entity work.reg
+            generic map (
+                N => WLI)
+            port map (
+                clk   => clk,
+                rst_n => rst_n,
+                en_i  => valid_q(0),
+                d_i   => dreg_q(i),
+                q_o   => dreg_q2(i));
+    end generate;
 
-    -- Pipe stage 2, fir products 
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            ff_prod_r_q <= (others => (others => '0'));
-        elsif rising_edge(clk) then
-            if valid_q(1) = '1' then
-                ff_prod_r_q(0) <= trunc(
-                    std_logic_vector(signed(FF_COEF(0))*signed(dreg_d_q)),
-                    WLI,
-                    QFI);
-                for i in dreg_q2'RANGE loop
-                    ff_prod_r_q(i+1) <=
-                        trunc(
-                            std_logic_vector(signed(FF_COEF(i+1))*signed(dreg_q2(i))),
-                            WLI,
-                            QFI);
-                end loop;
-            end if;
-        end if;
-    end process;
+    -- Pipe stage 2, fir products
+    pipe_stage_2_gen : for i in ff_prod_r'RANGE generate
+        reg_3_i : entity work.reg
+            generic map (
+                N => WLI)
+            port map (
+                clk   => clk,
+                rst_n => rst_n,
+                en_i  => valid_q(1),
+                d_i   => ff_prod_r(i),
+                q_o   => ff_prod_r_q(i));
+    end generate;
 
-    -- Pipe stage 3, pipe sum 
-    -- TODO Fix generic index
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            ff_prod_r_q2_0 <= (others => '0');
-            ff_prod_r_q2_1 <= (others => '0');
-            ff_sum_q_2     <= (others => '0');
-        elsif rising_edge(clk) then
-            if valid_q(2) = '1' then
-                ff_prod_r_q2_0 <= ff_prod_r_q(0);
-                ff_prod_r_q2_1 <= ff_prod_r_q(1);
+    -- Pipe stage 3, sum 
+    reg_4_0 : entity work.reg
+        generic map (
+            N => WLI)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => valid_q(2),
+            d_i   => ff_prod_r_q(0),
+            q_o   => ff_prod_r_q2_0);
+    reg_4_1 : entity work.reg
+        generic map (
+            N => WLI)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => valid_q(2),
+            d_i   => ff_prod_r_q(1),
+            q_o   => ff_prod_r_q2_1);
+    reg_4_2 : entity work.reg
+        generic map (
+            N => WLI)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => valid_q(2),
+            d_i   => ff_sum_2,
+            q_o   => ff_sum_2_q);
 
-                ff_sum_q_2 <= std_logic_vector(signed(ff_prod_r_q(2))
-                                               + signed(ff_prod_r_q(3)));
-            end if;
-        end if;
-    end process;
+    -- Fir mul op
+    ff_mul_inst_0 : entity work.mult generic map (
+        N => WLI)
+        port map (
+            a_i => dreg_d_q,
+            b_i => ff_coef(0),
+            r_o => ff_prod(0));
+    ff_prod_gen : for i in dreg_q2'RANGE generate
+        ff_mul_inst_i : entity work.mult generic map (
+            N => WLI)
+            port map (
+                a_i => dreg_q2(i),
+                b_i => ff_coef(i+1),
+                r_o => ff_prod(i+1));
+    end generate;
+
+    -- Round mul res
+    ff_prod_r_gen : for i in ff_prod'RANGE generate
+        ff_prod_r(i) <= trunc(ff_prod(i), WLI, QFI);
+    end generate;
 
     -- Sum fir
-    -- TODO Fix generic index
-    y_d <= std_logic_vector(signed(ff_prod_r_q2_0)
-                            + signed(ff_prod_r_q2_1)
-                            + signed(ff_sum_q_2));
+    ff_add_inst_2 : entity work.add
+        generic map (
+            N => WLI)
+        port map (
+            a_i => ff_prod_r_q(2),
+            b_i => ff_prod_r_q(3),
+            r_o => ff_sum_2);
 
-    -- Saturate truncated res 
-    -- only discard lsbs, no need for trunc()
+    ff_add_inst_1 : entity work.add
+        generic map (
+            N => WLI)
+        port map (
+            a_i => ff_prod_r_q2_1,
+            b_i => ff_sum_2_q,
+            r_o => ff_sum_1);
+
+    ff_add_inst_0 : entity work.add
+        generic map (
+            N => WLI)
+        port map (
+            a_i => ff_prod_r_q2_0,
+            b_i => ff_sum_1,
+            r_o => y_d);
+
+    -- Saturate and scale res
     y_d_tru <= y_d(y_d'HIGH downto QFI-QFD);
     y_d_sat <= clip(y_d_tru, WLD);
 
     -- Registered output
-    process(clk, rst_n)
-    begin
-        if rst_n = '0' then
-            data_o <= (others => '0');
-        elsif rising_edge(clk) then
-            if valid_q(3) = '1' then
-                data_o <= y_d_sat;
-            end if;
-        end if;
-    end process;
+    reg_5 : entity work.reg
+        generic map (
+            N => WLD)
+        port map (
+            clk   => clk,
+            rst_n => rst_n,
+            en_i  => valid_q(3),
+            d_i   => y_d_sat,
+            q_o   => data_o);
 
 end architecture;
