@@ -7,48 +7,53 @@ use ieee.numeric_std.all;
 entity iir_df2_sos is
     generic (
         -- pkg
-        N  : natural := 8;                           -- Q1.N
-        NI : natural := 16);                         -- Q1.NI
+        N  : natural := 8;                             -- Q1.N
+        NI : natural := 16);                           -- Q1.NI
     port (
-        clk   : in  std_logic;
-        rst_n : in  std_logic;
-        v_i   : in  std_logic;                       -- valid
-        d_i   : in  std_logic_vector(N-1 downto 0);  -- data
-        v_o   : out std_logic;
-        d_o   : out std_logic_vector(N-1 downto 0));
+        clk     : in  std_logic;
+        rst_n   : in  std_logic;
+        valid_i : in  std_logic;                       -- valid
+        data_i  : in  std_logic_vector(N-1 downto 0);  -- data
+        valid_o : out std_logic;
+        data_o  : out std_logic_vector(N-1 downto 0));
 end entity;
 
 architecture beh of iir_df2_sos is
-    signal xreg                 : signed(N-1 downto 0);
+
+    signal x_q, y_q : signed(N-1 downto 0);  -- registered i/o
+    signal align_x_q : signed(NI-1 downto 0);
     signal x, y, w0, w1, w2, w3 : signed(NI-1 downto 0);  -- df ii 
 
     signal v0, v1, v2 : std_logic;      -- valid (enable reg)
 
     signal fb0_q, fb1_q : signed(NI-1 downto 0);  -- feedback and retiming
 
-    signal w0_q, w1_q, w2_q, w3_q     : signed(NI-1 downto 0);  -- fb/ff pipeline 
+    signal w0_q, w1_q, w2_q, w3_q : signed(NI-1 downto 0);  -- fb/ff pipeline 
     signal ff0_q, ff1_q, ff2_q, ff3_q : signed(NI-1 downto 0);  -- pipelined fir
-    signal ff0_q2, ff1_q2, ff2_sum_q  : signed(NI-1 downto 0);
+    signal ff0_q2, ff1_q2, ff2_sum_q : signed(NI-1 downto 0);
 
 begin
 
+    x      <= signed(data_i);
+    data_o <= std_logic_vector(y_q);
+
     -- COMB
 
-    x(NI-1 downto NI-N) <= xreg;        -- align input sample
-    x(NI-N-1 downto 0)  <= (others => '0');
+    align_x_q(NI-1 downto NI-N) <= x_q;  -- align input sample
+    align_x_q(NI-N-1 downto 0)  <= (others => '0');
 
-    w <= x + fb0 + fb1;
-    y <= ff0_q + ff1_q + ff2_sum_q;
+    w0 <= align_x_q + fb0_q + fb1_q;
+    y  <= ff0_q2 + ff1_q2 + ff2_sum_q;
 
     -- REG
 
     process(clk, rst_n)                 -- sample in
     begin
         if rst_n = '0' then
-            x <= (others => '0');
+            x_q <= (others => '0');
         elsif rising_edge(clk) then
             if v_i = '1' then
-                xreg <= signed(d_i);
+                x_q <= x;
             end if;
         end if;
     end process;
@@ -56,15 +61,15 @@ begin
     process(clk, rst_n)                 -- sample out
     begin
         if rst_n = '0' then
-            d_o <= (others => '0');
+            y_q <= (others => '0');
         elsif rising_edge(clk) then
             if v2 = '1' then
-                d_o <= std_logic_vector(y(NI-1 downto N-NI));
+                y_q <= y(NI-1 downto N-NI);
             end if;
         end if;
     end process;
 
-    process(clk, rst_n)                 -- shift reg
+    process(clk, rst_n)                 -- shift samples
     begin
         if rst_n = '0' then
             w1 <= (others => '0');
@@ -72,7 +77,7 @@ begin
             w3 <= (others => '0');
         elsif rising_edge(clk) then
             if v0 = '1' then
-                w1 <= w;
+                w1 <= w0;
                 w2 <= w1;
                 w3 <= w2;
             end if;
@@ -92,7 +97,7 @@ begin
         end if;
     end process;
 
-    process(clk, rst_n)                 -- fb/fir pipe
+    process(clk, rst_n)                 -- fb / fir pipe
     begin
         if rst_n = '0' then
             w0_q <= (others => '0');
@@ -101,7 +106,7 @@ begin
             w3_q <= (others => '0');
         elsif rising_edge(clk) then
             if v0 = '1' then
-                w0_q <= w;
+                w0_q <= w0;
                 w1_q <= w1;
                 w2_q <= w2;
                 w3_q <= w3;
