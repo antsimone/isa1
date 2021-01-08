@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- TODO truncate MUL
+-- TODO: truncate MUL
 
 entity iir_df2_sos is
     generic (
@@ -24,7 +24,7 @@ architecture beh of iir_df2_sos is
     signal align_x_q : signed(NI-1 downto 0);
     signal x, y, w0, w1, w2, w3 : signed(NI-1 downto 0);  -- df ii 
 
-    signal v0, v1, v2 : std_logic;      -- valid (enable reg)
+    signal v0, v1, v2 : std_logic;  -- valid (enable reg)
 
     signal fb0_q, fb1_q : signed(NI-1 downto 0);  -- feedback and retiming
 
