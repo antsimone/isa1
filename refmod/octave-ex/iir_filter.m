@@ -1,26 +1,30 @@
 pkg load signal
 
 % filter config
+
 n = 2; % filter order
 nb = 8;	% samples wordlength
 fc = 2e3; % cutoff frequency
 fs = 10e3; % sampling frequency
 
 % test vector components
+
 f1 = 500;  
 f2 = 4500; 
 tt = 0:1/fs:5*(1/min(f1,f2));
 x1 = sin(2*pi*f1*tt);
 x2 = sin(2*pi*f2*tt);
-% test signal
 x = (x1+x2)/2; 
-xq = floor(x*2^(nb-1))/2^(nb-1);
 
-% filter
-[bq, aq] = iirdesign(n, fc, fs, nb)
+% quantize input and get coefficient
+
+xq = floor(x*2^(nb-1))/2^(nb-1);
+[bq, aq] = iir_design(n, fc, fs, nb)
+
 y = filter(bq, aq, xq);
 
-% save data
+% save text
+
 xi = xq*2^(nb-1);
 xi(find(xi==2^(nb-1))) = 2^(nb-1)-1;
 
@@ -37,10 +41,12 @@ fprintf(fp, '%d\n', yi);
 fclose(fp);
 
 % plots
+
 set(groot, 'defaultLineLinewidth', 1.5);
 set(groot, 'defaultAxesFontSize', 14);
 
 % components
+
 figure('name', 'input_signals')
 subplot(2,1,1);
 plot(tt, x1, 'r-*'); hold on; grid on
@@ -56,6 +62,7 @@ legend('x')
 xlabel('time (s)')
 
 % x, y
+
 figure('name', 'filter') 
 subplot(2,1,1);
 plot(tt, x, 'b-'); hold on; grid on;
@@ -65,6 +72,7 @@ legend('x','y')
 xlabel('time (s)')
 
 % x1, x2, y
+
 subplot(2,1,2);
 plot(tt,x1,'r-*'); hold on; grid on;
 plot(tt,x2,'g-*'); hold on 
@@ -73,6 +81,7 @@ legend('x1','x2', 'y')
 xlabel('time (s)')
 
 % fft
+
 nn = length(x);
 px = abs(fft(x))/nn;
 py = abs(fft(y))/nn;
@@ -101,6 +110,7 @@ xticklabels(
   )    
  
 % save fig
+
 mkdir('fig/')
 figlist = findall(groot,'Type','figure');
 for i = 1:length(figlist)

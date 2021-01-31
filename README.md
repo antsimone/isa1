@@ -1,8 +1,5 @@
-isa1 - clustered look-ahead pipelined biquad
-============================================
-
-References
-----------
+iir-df2
+=======
 
 <a id="1">[1]</a> K. K. Parhi and D. Messerschmitt, "Look-ahead computation: Improving iteration bound in linear recursions," ICASSP '87. IEEE International Conference on Acoustics, Speech, and Signal Processing, Dallas, TX, USA, 1987, pp. 1855-1858.
 doi: 10.1109/ICASSP.1987.1169698

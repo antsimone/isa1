@@ -6,15 +6,15 @@ use std.textio.all;
 
 entity data_src is
     generic (
-        WLD      : positive := 8;       -- data size
-        FILENAME : string   := "");
+                WLD      : positive := 8;       -- data size
+                FILENAME : string   := "");
     port(
-        clk       : in  std_logic;
-        rst_n     : in  std_logic;
-        en_i      : in  std_logic;
-        data_o    : out std_logic_vector(WLD-1 downto 0);
-        valid_o   : out std_logic;
-        end_sim_o : out std_logic);
+            clk       : in  std_logic;
+            rst_n     : in  std_logic;
+            en_i      : in  std_logic;
+            data_o    : out std_logic_vector(WLD-1 downto 0);
+            valid_o   : out std_logic;
+            end_sim_o : out std_logic);
 end entity;
 
 architecture beh of data_src is

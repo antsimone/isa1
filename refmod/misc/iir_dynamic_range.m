@@ -72,24 +72,24 @@ disp(sprintf('\nFb taps'))
 g_l2_norm = sum(abs(h.^2))^(1/2)
 g_l1_norm = sum(abs(h))
 
-% % Filter ex 100 samples (random)
-% Nx = 100;
-% y = zeros(Nx+2); 
-% x = [0 0 (rand(1, Nx)-0.5)*2];
-% d = zeros(Nx+2); 
-% % Loop on input samples with offset 3
-% for n = 3:Nx+2 
-%   d(n) = (x(n) - a(2)*d(n-1) - a(3)*d(n-2));
-%   y(n) = (b(1)*d(n) + b(2)*d(n-1) + b(3)*d(n-2));
-% end
-% max(d(:,1))
-% 
-% % Worst-case analysis (step)
-% x = ones(Nx+2);
-% d = zeros(Nx+2); 
-% % Loop on input samples with offset 3
-% for n = 3:Nx+2 
-%   d(n) = (x(n) - a(2)*d(n-1) - a(3)*d(n-2));
-%   y(n) = (b(1)*d(n) + b(2)*d(n-1) + b(3)*d(n-2));
-% end
-% disp([ 'max value = ' num2str(max(d(:,1)))])      
+% Filter ex 100 samples (random)
+Nx = 100;
+y = zeros(Nx+2); 
+x = [0 0 (rand(1, Nx)-0.5)*2];
+d = zeros(Nx+2); 
+% Loop on input samples with offset 3
+for n = 3:Nx+2 
+  d(n) = (x(n) - a(2)*d(n-1) - a(3)*d(n-2));
+  y(n) = (b(1)*d(n) + b(2)*d(n-1) + b(3)*d(n-2));
+end
+max(d(:,1))
+
+% Worst-case analysis (step)
+x = ones(Nx+2);
+d = zeros(Nx+2); 
+% Loop on input samples with offset 3
+for n = 3:Nx+2 
+  d(n) = (x(n) - a(2)*d(n-1) - a(3)*d(n-2));
+  y(n) = (b(1)*d(n) + b(2)*d(n-1) + b(3)*d(n-2));
+end
+disp([ 'max value = ' num2str(max(d(:,1)))])      

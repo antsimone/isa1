@@ -1,4 +1,4 @@
-function [bq, aq] = iirdesign(n, fc, fs, nb)
+function [bq, aq] = iir_design(n, fc, fs, nb)
     [b, a] = butter(n, 2*fc/fs);
 
     bq = floor(b*2^(nb-1))/2^(nb-1);

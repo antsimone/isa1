@@ -5,13 +5,13 @@ use std.textio.all;
 
 entity data_sink is
     generic (
-        WLD      : positive := 8;
-        FILENAME : string   := "");
+                WLD      : positive := 8;
+                FILENAME : string   := "");
     port(
-        clk    : in std_logic;
-        rst_n  : in std_logic;
-        en_i   : in std_logic;
-        data_i : in std_logic_vector(WLD-1 downto 0));
+            clk    : in std_logic;
+            rst_n  : in std_logic;
+            en_i   : in std_logic;
+            data_i : in std_logic_vector(WLD-1 downto 0));
 end entity;
 
 architecture beh of data_sink is
